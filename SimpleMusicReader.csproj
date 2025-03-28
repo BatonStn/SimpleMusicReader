@@ -1,0 +1,35 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="loop.png" />
+    <None Remove="loopno.png" />
+    <None Remove="random.png" />
+    <None Remove="stop.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="TagLibSharp" Version="2.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="folder.png" />
+    <Resource Include="loop.png" />
+    <Resource Include="loopno.png" />
+    <Resource Include="next.png" />
+    <Resource Include="pause.png" />
+    <Resource Include="play.png" />
+    <Resource Include="random.png" />
+    <Resource Include="stop.png" />
+    <Resource Include="subfolder.png" />
+    <Resource Include="volume.png" />
+  </ItemGroup>
+
+</Project>
