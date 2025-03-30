@@ -1,8 +1,5 @@
-﻿using System.Windows.Controls;
-using System.IO;
+﻿using System.IO;
 using System.Windows.Media.Imaging;
-using System.Windows.Media;
-using System.Windows;
 
 namespace SimpleMusicReader;
 
@@ -70,7 +67,8 @@ public class Music
         {
             image.BeginInit();
             image.CreateOptions = BitmapCreateOptions.PreservePixelFormat;
-            image.CacheOption = BitmapCacheOption.OnLoad; image.UriSource = new Uri(@"questionmark.jpg", UriKind.Relative);
+            image.CacheOption = BitmapCacheOption.OnLoad; 
+            image.UriSource = new Uri(@"questionmark.jpg", UriKind.Relative);
             image.EndInit();
         }
         else
@@ -80,7 +78,6 @@ public class Music
             image.BeginInit();
             image.CreateOptions = BitmapCreateOptions.PreservePixelFormat;
             image.CacheOption = BitmapCacheOption.OnLoad;
-            image.UriSource = null;
             image.StreamSource = mem;
             image.EndInit();
         }

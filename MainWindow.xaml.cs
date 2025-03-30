@@ -16,7 +16,12 @@ public partial class MainWindow : Window
     private bool isMusicLooping = false;
 
     private List<Music> listMusic = [];
+    private Music[] currentListMusic = [];
+    private List<Music[]> allMusicLists = [];
     private Music _currentMusic;
+
+    private int subListSize;
+
     public Music CurrentMusic
     {
         get { return _currentMusic; }
@@ -35,6 +40,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         InitializePropertyValues();
 
+        subListSize = 50;
         CurrentMusic = new();
 
         DispatcherTimer timer = new()
@@ -89,8 +95,15 @@ public partial class MainWindow : Window
 
                 if (listMusic.Count != 0)
                 {
-                    SetCurrentSong(listMusic[0]);
-                    musicListView.ItemsSource = listMusic;
+                    HidePagination();
+                    CutMusicList();
+                    if (listMusic.Count > subListSize)
+                    {
+                        DisplayPagination();
+                    }
+
+                    SetCurrentSong(currentListMusic[0]);
+                    musicListView.ItemsSource = currentListMusic;
                     musicListView.SelectedItem = musicListView.Items.GetItemAt(0);
 
                     mePlayer.Pause();
@@ -136,8 +149,15 @@ public partial class MainWindow : Window
 
             if (listMusic.Count != 0)
             {
-                SetCurrentSong(listMusic[0]);
-                musicListView.ItemsSource = listMusic;
+                HidePagination();
+                CutMusicList();
+                if (listMusic.Count > subListSize)
+                {
+                    DisplayPagination();
+                }
+
+                SetCurrentSong(currentListMusic[0]);
+                musicListView.ItemsSource = currentListMusic;
                 musicListView.SelectedItem = musicListView.Items.GetItemAt(0);
 
                 mePlayer.Pause();
@@ -160,7 +180,7 @@ public partial class MainWindow : Window
 
     public void ScrollToItem()
     {
-        musicListView.SelectedItem = musicListView.Items.GetItemAt(CurrentMusic.SongNumber);
+        musicListView.SelectedItem = musicListView.Items.GetItemAt(CurrentMusic.SongNumber % subListSize);
         musicListView.ScrollIntoView(musicListView.SelectedItem);
         ListViewItem item = musicListView.ItemContainerGenerator.ContainerFromItem(musicListView.SelectedItem) as ListViewItem;
         item.Focus();
@@ -170,7 +190,7 @@ public partial class MainWindow : Window
     {
         if (sender is ListViewItem item && item.IsSelected)
         {
-            SetCurrentSong(listMusic[musicListView.SelectedIndex]);
+            SetCurrentSong(currentListMusic[musicListView.SelectedIndex]);
             if (!mediaPlayerIsPlaying)
             {
                 mePlayer.Play();
@@ -215,7 +235,16 @@ public partial class MainWindow : Window
 
     private void NextTrack_Executed(object sender, ExecutedRoutedEventArgs e)
     {
-        SetCurrentSong(listMusic[CurrentMusic.SongNumber + 1]);
+        if ((CurrentMusic.SongNumber + 1) % subListSize == 0)
+        {
+            currentListMusic = allMusicLists[(CurrentMusic.SongNumber + 1) / subListSize];
+            SetCurrentSong(currentListMusic[0]);
+            musicListView.ItemsSource = currentListMusic;
+        }
+        else
+        {
+            SetCurrentSong(listMusic[CurrentMusic.SongNumber + 1]);
+        }
         ScrollToItem();
         sliProgress.Value = 0;
     }
@@ -226,7 +255,16 @@ public partial class MainWindow : Window
 
     private void PreviousTrack_Executed(object sender, ExecutedRoutedEventArgs e)
     {
-        SetCurrentSong(listMusic[CurrentMusic.SongNumber - 1]);
+        if (CurrentMusic.SongNumber % subListSize == 0)
+        {
+            currentListMusic = allMusicLists[(CurrentMusic.SongNumber / subListSize) - 1];
+            SetCurrentSong(currentListMusic[subListSize - 1]);
+            musicListView.ItemsSource = currentListMusic;
+        }
+        else
+        {
+            SetCurrentSong(listMusic[CurrentMusic.SongNumber - 1]);
+        }
         ScrollToItem();
         sliProgress.Value = 0;
     }
@@ -281,7 +319,16 @@ public partial class MainWindow : Window
             int listSize = listMusic.Count;
             if ((listSize != 0) && (listSize != CurrentMusic.SongNumber + 1))
             {
-                SetCurrentSong(listMusic[CurrentMusic.SongNumber + 1]);
+                if ((CurrentMusic.SongNumber + 1) % subListSize == 0)
+                {
+                    currentListMusic = allMusicLists[(CurrentMusic.SongNumber + 1) / subListSize];
+                    SetCurrentSong(currentListMusic[0]);
+                    musicListView.ItemsSource = currentListMusic;
+                }
+                else
+                {
+                    SetCurrentSong(listMusic[CurrentMusic.SongNumber + 1]);
+                }
                 ScrollToItem();
                 sliProgress.Value = 0;
             }
@@ -303,8 +350,10 @@ public partial class MainWindow : Window
             listMusic[i].SongNumber = i;
         }
 
-        SetCurrentSong(listMusic[0]);
-        musicListView.ItemsSource = listMusic;
+        CutMusicList();
+
+        SetCurrentSong(currentListMusic[0]);
+        musicListView.ItemsSource = currentListMusic;
         musicListView.SelectedItem = musicListView.Items.GetItemAt(0);
 
         mePlayer.Pause();
@@ -323,5 +372,87 @@ public partial class MainWindow : Window
     private void ChangeMediaVolume(object sender, RoutedPropertyChangedEventArgs<double> args)
     {
         mePlayer.Volume = volumeSlider.Value/100;
+    }
+
+    private void CutMusicList()
+    {
+        allMusicLists = [];
+        int size = listMusic.Count;
+
+        for(int i = 0; i < size; i+=subListSize)
+        {
+            Music[] subList = new Music[subListSize];
+            for (int j = 0; j < subListSize && i+j<size; j++)
+            {
+                subList[j] = listMusic[i + j];
+            }
+
+            allMusicLists.Add(subList);
+        }
+        currentListMusic = allMusicLists[0];
+    }
+
+    private void DisplayPagination()
+    {
+        listCommands.Visibility = Visibility.Visible;
+    }
+
+    private void HidePagination()
+    {
+        listCommands.Visibility = Visibility.Collapsed;
+    }
+    private void FirstPage_CanExecute(object sender, CanExecuteRoutedEventArgs e)
+    {
+        e.CanExecute = (CurrentMusic != null) && CurrentMusic.SongNumber >= subListSize;
+    }
+
+    private void FirstPage_Executed(object sender, ExecutedRoutedEventArgs e)
+    {
+        currentListMusic = allMusicLists[0];
+        SetCurrentSong(currentListMusic[0]);
+        musicListView.ItemsSource = currentListMusic;
+        ScrollToItem();
+        sliProgress.Value = 0;
+    }
+    private void LastPage_CanExecute(object sender, CanExecuteRoutedEventArgs e)
+    {
+        e.CanExecute = (CurrentMusic != null) && (CurrentMusic.SongNumber / subListSize) < allMusicLists.Count - 1;
+    }
+
+    private void LastPage_Executed(object sender, ExecutedRoutedEventArgs e)
+    {
+        currentListMusic = allMusicLists[allMusicLists.Count - 1];
+        SetCurrentSong(currentListMusic[0]);
+        musicListView.ItemsSource = currentListMusic;
+        ScrollToItem();
+        sliProgress.Value = 0;
+    }
+
+    private void PreviousPage_CanExecute(object sender, CanExecuteRoutedEventArgs e)
+    {
+        e.CanExecute = (CurrentMusic != null) && CurrentMusic.SongNumber >= subListSize;
+    }
+
+    private void PreviousPage_Executed(object sender, ExecutedRoutedEventArgs e)
+    {
+        currentListMusic = allMusicLists[(CurrentMusic.SongNumber / subListSize) - 1];
+        SetCurrentSong(currentListMusic[0]);
+        musicListView.ItemsSource = currentListMusic;
+        ScrollToItem();
+        sliProgress.Value = 0;
+    }
+
+    private void NextPage_CanExecute(object sender, CanExecuteRoutedEventArgs e)
+    {
+        e.CanExecute = (CurrentMusic != null) && (CurrentMusic.SongNumber / subListSize) < allMusicLists.Count - 1;
+    }
+
+    private void NextPage_Executed(object sender, ExecutedRoutedEventArgs e)
+    {
+        currentListMusic = allMusicLists[(CurrentMusic.SongNumber / subListSize) + 1];
+        SetCurrentSong(currentListMusic[0]);
+        musicListView.ItemsSource = currentListMusic;
+        ScrollToItem();
+        sliProgress.Value = 0;
     }
 }

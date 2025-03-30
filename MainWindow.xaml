@@ -9,6 +9,12 @@
     <Window.CommandBindings>
         <CommandBinding Command="ApplicationCommands.Open" CanExecute="Open_CanExecute" Executed="Open_Executed" />
         <CommandBinding Command="ApplicationCommands.New" CanExecute="Open_FolderCanExecute" Executed="Open_FolderExecuted" />
+
+        <CommandBinding Command="ApplicationCommands.CancelPrint" CanExecute="FirstPage_CanExecute" Executed="FirstPage_Executed" />
+        <CommandBinding Command="ApplicationCommands.Close" CanExecute="PreviousPage_CanExecute" Executed="PreviousPage_Executed" />
+        <CommandBinding Command="ApplicationCommands.ContextMenu" CanExecute="NextPage_CanExecute" Executed="NextPage_Executed" />
+        <CommandBinding Command="ApplicationCommands.Copy" CanExecute="LastPage_CanExecute" Executed="LastPage_Executed" />
+        
         <CommandBinding Command="MediaCommands.Play" CanExecute="Play_CanExecute" Executed="Play_Executed" />
         <CommandBinding Command="MediaCommands.Pause" CanExecute="Pause_CanExecute" Executed="Pause_Executed" />
         <CommandBinding Command="MediaCommands.PreviousTrack" CanExecute="PreviousTrack_CanExecute" Executed="PreviousTrack_Executed" />
@@ -33,6 +39,21 @@
                 <Image Source="/folder.png"></Image>
             </Button>
         </StackPanel>
+
+        <Grid Name="listCommands" HorizontalAlignment="Center" Visibility="Collapsed">
+            <Button Command="ApplicationCommands.CancelPrint" BorderThickness="0" Width="64" Margin="0,0,300,0">
+                First
+            </Button>
+            <Button Command="ApplicationCommands.Close" BorderThickness="0" Width="64" Margin="0,0,150,0">
+                Previous
+            </Button>
+            <Button Command="ApplicationCommands.ContextMenu" BorderThickness="0" Width="64" Margin="150,0,0,0">
+                Next
+            </Button>
+            <Button Command="ApplicationCommands.Copy" BorderThickness="0" Width="64" Margin="300,0,0,0">
+                Last
+            </Button>
+        </Grid>
 
         <Border CornerRadius="25" Grid.Row="1" HorizontalAlignment="Right" VerticalAlignment="Bottom"
                 Width="256" Height="256" Margin="0,0,32,16" Panel.ZIndex="1">
