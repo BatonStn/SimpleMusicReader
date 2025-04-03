@@ -1,8 +1,8 @@
 ﻿using System.IO;
-using System.Security.Cryptography;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Threading;
 using Microsoft.Win32;
@@ -15,13 +15,28 @@ public partial class MainWindow : Window
     private bool userIsDraggingSlider = false;
     private bool isMusicLooping = false;
 
-    private List<Music> listMusic = [];
-    private Music[] currentListMusic = [];
-    private List<Music[]> allMusicLists = [];
+    private List<Music> previousMusicList = [];
+    private List<Music> currentMusicList = [];
+    private List<Music> nextMusicList = [];
+
+    private List<String> songs = [];
+    private List<String[]> cutSongs = [];
+
+    private int collectionSize = 0;
+    private int currentPageSongNumber;
+    private static int subListSize = 25;
+    private int _currentPage;
+    private int CurrentPage
+    {
+        get { return _currentPage; }
+        set
+        {
+            _currentPage = value;
+            pageNumber.Text = (_currentPage + 1).ToString();
+        }
+    }
+
     private Music _currentMusic;
-
-    private int subListSize;
-
     public Music CurrentMusic
     {
         get { return _currentMusic; }
@@ -40,16 +55,13 @@ public partial class MainWindow : Window
         InitializeComponent();
         InitializePropertyValues();
 
-        subListSize = 50;
         CurrentMusic = new();
 
-        DispatcherTimer timer = new()
-        {
-            Interval = TimeSpan.FromSeconds(1)
-        };
+        DispatcherTimer timer = new() { Interval = TimeSpan.FromSeconds(1) };
         timer.Tick += timer_Tick;
         timer.Start();
     }
+
     private void timer_Tick(object sender, EventArgs e)
     {
         if ((mePlayer.Source != null) && (mePlayer.NaturalDuration.HasTimeSpan) && (!userIsDraggingSlider))
@@ -64,7 +76,6 @@ public partial class MainWindow : Window
     {
         e.CanExecute = true;
     }
-
     private void Open_Executed(object sender, ExecutedRoutedEventArgs e)
     {
         OpenFolderDialog openFolderDialog = new();
@@ -77,7 +88,7 @@ public partial class MainWindow : Window
 
             if (folders.Length > 0)
             {
-                listMusic = [];
+                songs = [];
                 foreach (string folder in folders)
                 {
                     string[] files = Directory.GetFiles(folder);
@@ -87,29 +98,25 @@ public partial class MainWindow : Window
                         string extension = Path.GetExtension(file);
                         if (extension == ".mp3" || extension == ".flac")
                         {
-                            listMusic.Add(new Music(file, songNumber));
+                            songs.Add(file);
                             songNumber++;
                         }
                     }
                 }
 
-                if (listMusic.Count != 0)
+                collectionSize = songs.Count;
+
+                if (collectionSize != 0)
                 {
                     HidePagination();
                     CutMusicList();
-                    if (listMusic.Count > subListSize)
-                    {
-                        DisplayPagination();
-                    }
-
-                    SetCurrentSong(currentListMusic[0]);
-                    musicListView.ItemsSource = currentListMusic;
-                    musicListView.SelectedItem = musicListView.Items.GetItemAt(0);
 
                     mePlayer.Pause();
                     playButton.Visibility = Visibility.Visible;
                     pauseButton.Visibility = Visibility.Collapsed;
                     mediaPlayerIsPlaying = false;
+
+                    albumAndArtist.Visibility = Visibility.Visible;
                 }
             }
             else
@@ -123,47 +130,41 @@ public partial class MainWindow : Window
     {
         e.CanExecute = true;
     }
-
     private void Open_FolderExecuted(object sender, ExecutedRoutedEventArgs e)
     {
         OpenFolderDialog openFolderDialog = new();
         if (openFolderDialog.ShowDialog() == true)
         {
             string fullPathToFolder = openFolderDialog.FolderName;
-
             string[] files = Directory.GetFiles(fullPathToFolder);
 
             int songNumber = 0;
 
-            listMusic = [];
+            songs = [];
 
             foreach(string file in files)
             {
                 string extension = Path.GetExtension(file);
                 if (extension == ".mp3" || extension == ".flac")
                 {
-                    listMusic.Add(new Music(file, songNumber));
+                    songs.Add(file);
                     songNumber++;
                 }
             }
 
-            if (listMusic.Count != 0)
+            collectionSize = songs.Count;
+
+            if (collectionSize != 0)
             {
                 HidePagination();
                 CutMusicList();
-                if (listMusic.Count > subListSize)
-                {
-                    DisplayPagination();
-                }
-
-                SetCurrentSong(currentListMusic[0]);
-                musicListView.ItemsSource = currentListMusic;
-                musicListView.SelectedItem = musicListView.Items.GetItemAt(0);
 
                 mePlayer.Pause();
                 playButton.Visibility = Visibility.Visible;
                 pauseButton.Visibility = Visibility.Collapsed;
-                mediaPlayerIsPlaying = false;
+                mediaPlayerIsPlaying = false; 
+                
+                albumAndArtist.Visibility = Visibility.Visible;
             }
             else
             {
@@ -180,17 +181,17 @@ public partial class MainWindow : Window
 
     public void ScrollToItem()
     {
-        musicListView.SelectedItem = musicListView.Items.GetItemAt(CurrentMusic.SongNumber % subListSize);
+        musicListView.SelectedItem = musicListView.Items.GetItemAt(currentPageSongNumber);
         musicListView.ScrollIntoView(musicListView.SelectedItem);
         ListViewItem item = musicListView.ItemContainerGenerator.ContainerFromItem(musicListView.SelectedItem) as ListViewItem;
         item.Focus();
     }
-
-    void ListViewItem_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    public void ListViewItem_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (sender is ListViewItem item && item.IsSelected)
         {
-            SetCurrentSong(currentListMusic[musicListView.SelectedIndex]);
+            SetCurrentSong(currentMusicList[musicListView.SelectedIndex]);
+            currentPageSongNumber = musicListView.SelectedIndex;
             if (!mediaPlayerIsPlaying)
             {
                 mePlayer.Play();
@@ -205,7 +206,6 @@ public partial class MainWindow : Window
     {
         e.CanExecute = (mePlayer != null) && (mePlayer.Source != null);
     }
-
     private void Play_Executed(object sender, ExecutedRoutedEventArgs e)
     {
         mePlayer.Play();
@@ -218,7 +218,6 @@ public partial class MainWindow : Window
     {
         e.CanExecute = mediaPlayerIsPlaying;
     }
-
     private void Pause_Executed(object sender, ExecutedRoutedEventArgs e)
     {
         mePlayer.Pause();
@@ -229,41 +228,55 @@ public partial class MainWindow : Window
 
     private void NextTrack_CanExecute(object sender, CanExecuteRoutedEventArgs e)
     {
-        int listSize = listMusic.Count;
-        e.CanExecute = (listSize != 0) && (listSize != CurrentMusic.SongNumber + 1);
+        e.CanExecute = (collectionSize != 0) && (collectionSize > CurrentMusic.SongNumber + 1);
     }
-
     private void NextTrack_Executed(object sender, ExecutedRoutedEventArgs e)
     {
-        if ((CurrentMusic.SongNumber + 1) % subListSize == 0)
+        if (currentPageSongNumber == subListSize - 1)
         {
-            currentListMusic = allMusicLists[(CurrentMusic.SongNumber + 1) / subListSize];
-            SetCurrentSong(currentListMusic[0]);
-            musicListView.ItemsSource = currentListMusic;
+            CurrentPage++;
+            currentPageSongNumber = 0;
+
+            previousMusicList = currentMusicList;
+            currentMusicList = nextMusicList;
+            if (CurrentPage == cutSongs.Count - 1) nextMusicList = [];
+            else nextMusicList = StringArrayToMusicList(cutSongs[CurrentPage + 1], CurrentPage + 1);
+
+            SetCurrentSong(currentMusicList[0]);
+            musicListView.ItemsSource = currentMusicList;
         }
         else
         {
-            SetCurrentSong(listMusic[CurrentMusic.SongNumber + 1]);
+            currentPageSongNumber++;
+            SetCurrentSong(currentMusicList[currentPageSongNumber]);
         }
         ScrollToItem();
         sliProgress.Value = 0;
     }
+
     private void PreviousTrack_CanExecute(object sender, CanExecuteRoutedEventArgs e)
     {
-        e.CanExecute = (listMusic.Count != 0) && (CurrentMusic.SongNumber != 0);
+        e.CanExecute = (collectionSize != 0) && (CurrentMusic.SongNumber != 0);
     }
-
     private void PreviousTrack_Executed(object sender, ExecutedRoutedEventArgs e)
     {
-        if (CurrentMusic.SongNumber % subListSize == 0)
+        if (currentPageSongNumber == 0)
         {
-            currentListMusic = allMusicLists[(CurrentMusic.SongNumber / subListSize) - 1];
-            SetCurrentSong(currentListMusic[subListSize - 1]);
-            musicListView.ItemsSource = currentListMusic;
+            CurrentPage--;
+            currentPageSongNumber = subListSize - 1;
+
+            nextMusicList = currentMusicList;
+            currentMusicList = previousMusicList;
+            if (CurrentPage == 0) previousMusicList = [];
+            else previousMusicList = StringArrayToMusicList(cutSongs[CurrentPage - 1], CurrentPage - 1);
+
+            SetCurrentSong(currentMusicList[subListSize - 1]);
+            musicListView.ItemsSource = currentMusicList;
         }
         else
         {
-            SetCurrentSong(listMusic[CurrentMusic.SongNumber - 1]);
+            currentPageSongNumber--;
+            SetCurrentSong(currentMusicList[currentPageSongNumber]);
         }
         ScrollToItem();
         sliProgress.Value = 0;
@@ -273,23 +286,21 @@ public partial class MainWindow : Window
     {
         userIsDraggingSlider = true;
     }
-
     private void sliProgress_DragCompleted(object sender, DragCompletedEventArgs e)
     {
         userIsDraggingSlider = false;
         mePlayer.Position = TimeSpan.FromSeconds(sliProgress.Value);
     }
-
     private void sliProgress_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
         lblProgressStatus.Text = TimeSpan.FromSeconds(sliProgress.Value).ToString(@"hh\:mm\:ss");
         lblReverseProgressStatus.Text = TimeSpan.FromSeconds(sliProgress.Maximum - sliProgress.Value).ToString(@"hh\:mm\:ss");
     }
+    
     private void Loop_CanExecute(object sender, CanExecuteRoutedEventArgs e)
     {
-        e.CanExecute = (listMusic.Count > 0);
+        e.CanExecute = (collectionSize > 0);
     }
-
     private void Loop_Executed(object sender, ExecutedRoutedEventArgs e)
     {
         if (isMusicLooping)
@@ -306,7 +317,6 @@ public partial class MainWindow : Window
         }
     }
 
-
     private void MediaEnded(object sender, EventArgs e)
     {
         if (isMusicLooping)
@@ -316,45 +326,54 @@ public partial class MainWindow : Window
         }
         else
         {
-            int listSize = listMusic.Count;
-            if ((listSize != 0) && (listSize != CurrentMusic.SongNumber + 1))
+            if ((collectionSize != 0) && (collectionSize != CurrentMusic.SongNumber + 1))
             {
-                if ((CurrentMusic.SongNumber + 1) % subListSize == 0)
+                if (currentPageSongNumber == subListSize - 1)
                 {
-                    currentListMusic = allMusicLists[(CurrentMusic.SongNumber + 1) / subListSize];
-                    SetCurrentSong(currentListMusic[0]);
-                    musicListView.ItemsSource = currentListMusic;
+                    CurrentPage++;
+                    currentPageSongNumber = 0;
+
+                    previousMusicList = currentMusicList;
+                    currentMusicList = nextMusicList;
+                    if (CurrentPage == cutSongs.Count - 1) nextMusicList = [];
+                    else nextMusicList = StringArrayToMusicList(cutSongs[CurrentPage + 1], CurrentPage + 1);
+
+                    SetCurrentSong(currentMusicList[0]);
+                    musicListView.ItemsSource = currentMusicList;
                 }
                 else
                 {
-                    SetCurrentSong(listMusic[CurrentMusic.SongNumber + 1]);
+                    currentPageSongNumber++;
+                    SetCurrentSong(currentMusicList[currentPageSongNumber]);
                 }
                 ScrollToItem();
                 sliProgress.Value = 0;
             }
+            else
+            {
+                mePlayer.Pause();
+                playButton.Visibility = Visibility.Visible;
+                pauseButton.Visibility = Visibility.Collapsed;
+                mediaPlayerIsPlaying = false;
+            }
         }
     }
+    
     private void Randomize_CanExecute(object sender, CanExecuteRoutedEventArgs e)
     {
-        e.CanExecute = (listMusic.Count > 0);
+        e.CanExecute = (collectionSize > 0);
     }
-
     private void Randomize_Executed(object sender, ExecutedRoutedEventArgs e)
     {
         Random rng = new();
-        var shuffledcards = listMusic.OrderBy(_ => rng.Next()).ToList();
-        listMusic = [];
+        var shuffledcards = songs.OrderBy(_ => rng.Next()).ToList();
+        songs = [];
         for (int i = 0; i < shuffledcards.Count; i++)
         {
-            listMusic.Add(shuffledcards[i]);
-            listMusic[i].SongNumber = i;
+            songs.Add(shuffledcards[i]);
         }
 
         CutMusicList();
-
-        SetCurrentSong(currentListMusic[0]);
-        musicListView.ItemsSource = currentListMusic;
-        musicListView.SelectedItem = musicListView.Items.GetItemAt(0);
 
         mePlayer.Pause();
         playButton.Visibility = Visibility.Visible;
@@ -364,11 +383,8 @@ public partial class MainWindow : Window
 
     void InitializePropertyValues()
     {
-        // Set the media's starting Volume to the current value of their respective slider controls.
         mePlayer.Volume = volumeSlider.Value/100;
     }
-
-    // Change the volume of the media.
     private void ChangeMediaVolume(object sender, RoutedPropertyChangedEventArgs<double> args)
     {
         mePlayer.Volume = volumeSlider.Value/100;
@@ -376,82 +392,133 @@ public partial class MainWindow : Window
 
     private void CutMusicList()
     {
-        allMusicLists = [];
-        int size = listMusic.Count;
+        cutSongs = [];
 
-        for(int i = 0; i < size; i+=subListSize)
+        for (int i = 0; i < collectionSize; i+=subListSize)
         {
-            Music[] subList = new Music[subListSize];
-            for (int j = 0; j < subListSize && i+j<size; j++)
+            string[] subList = new string[subListSize];
+
+            for (int j = 0; j < subListSize && i+j< collectionSize; j++)
             {
-                subList[j] = listMusic[i + j];
+                subList[j] = songs[i + j];
             }
 
-            allMusicLists.Add(subList);
+            cutSongs.Add(subList);
         }
-        currentListMusic = allMusicLists[0];
+        previousMusicList = [];
+        currentMusicList = StringArrayToMusicList(cutSongs[0], 0);
+
+        if (collectionSize > subListSize)
+        {
+            DisplayPagination();
+            nextMusicList = StringArrayToMusicList(cutSongs[1], 1);
+            pageTotal.Text = cutSongs.Count.ToString();
+        }
+
+        CurrentPage = 0;
+        currentPageSongNumber = 0;
+        SetCurrentSong(currentMusicList[0]);
+        musicListView.ItemsSource = currentMusicList;
+        musicListView.SelectedItem = musicListView.Items.GetItemAt(0);
+    }
+
+    private static List<Music> StringArrayToMusicList(string[] cutSongsArray, int songIndex)
+    {
+        List<Music> musicList = [];
+        for (int i = 0; i < cutSongsArray.Length; i++)
+        {
+            if (cutSongsArray[i] == null) break;
+            musicList.Add(new Music(cutSongsArray[i], songIndex*subListSize + i));
+        }
+        return musicList;
     }
 
     private void DisplayPagination()
     {
         listCommands.Visibility = Visibility.Visible;
     }
-
     private void HidePagination()
     {
         listCommands.Visibility = Visibility.Collapsed;
     }
+    
     private void FirstPage_CanExecute(object sender, CanExecuteRoutedEventArgs e)
     {
-        e.CanExecute = (CurrentMusic != null) && CurrentMusic.SongNumber >= subListSize;
+        e.CanExecute = CurrentMusic != null && CurrentPage > 0;
     }
-
     private void FirstPage_Executed(object sender, ExecutedRoutedEventArgs e)
     {
-        currentListMusic = allMusicLists[0];
-        SetCurrentSong(currentListMusic[0]);
-        musicListView.ItemsSource = currentListMusic;
+        previousMusicList = [];
+        currentMusicList = StringArrayToMusicList(cutSongs[0], 0);
+        nextMusicList = StringArrayToMusicList(cutSongs[1], 1);
+        
+        CurrentPage = 0;
+        currentPageSongNumber = 0;
+        SetCurrentSong(currentMusicList[0]);
+        musicListView.ItemsSource = currentMusicList;
         ScrollToItem();
         sliProgress.Value = 0;
     }
+    
     private void LastPage_CanExecute(object sender, CanExecuteRoutedEventArgs e)
     {
-        e.CanExecute = (CurrentMusic != null) && (CurrentMusic.SongNumber / subListSize) < allMusicLists.Count - 1;
+        e.CanExecute = CurrentMusic != null && CurrentPage < (cutSongs.Count - 1);
     }
-
     private void LastPage_Executed(object sender, ExecutedRoutedEventArgs e)
     {
-        currentListMusic = allMusicLists[allMusicLists.Count - 1];
-        SetCurrentSong(currentListMusic[0]);
-        musicListView.ItemsSource = currentListMusic;
+        int pageNumber = cutSongs.Count - 1;
+
+        previousMusicList = StringArrayToMusicList(cutSongs[pageNumber - 1], pageNumber - 1);
+        currentMusicList = StringArrayToMusicList(cutSongs[pageNumber], pageNumber);
+        nextMusicList = [];
+
+        CurrentPage = pageNumber;
+        currentPageSongNumber = 0;
+
+        SetCurrentSong(currentMusicList[0]);
+        musicListView.ItemsSource = currentMusicList;
         ScrollToItem();
         sliProgress.Value = 0;
     }
 
     private void PreviousPage_CanExecute(object sender, CanExecuteRoutedEventArgs e)
     {
-        e.CanExecute = (CurrentMusic != null) && CurrentMusic.SongNumber >= subListSize;
+        e.CanExecute = CurrentMusic != null && CurrentPage > 0;
     }
-
     private void PreviousPage_Executed(object sender, ExecutedRoutedEventArgs e)
     {
-        currentListMusic = allMusicLists[(CurrentMusic.SongNumber / subListSize) - 1];
-        SetCurrentSong(currentListMusic[0]);
-        musicListView.ItemsSource = currentListMusic;
+        nextMusicList = currentMusicList;
+        currentMusicList = previousMusicList;
+        if (CurrentPage == 1) previousMusicList = [];
+        else previousMusicList = StringArrayToMusicList(cutSongs[CurrentPage - 2], CurrentPage - 2);
+
+        CurrentPage--;
+        currentPageSongNumber = 0;
+
+        SetCurrentSong(currentMusicList[0]);
+        musicListView.ItemsSource = currentMusicList;
+
         ScrollToItem();
         sliProgress.Value = 0;
     }
 
     private void NextPage_CanExecute(object sender, CanExecuteRoutedEventArgs e)
     {
-        e.CanExecute = (CurrentMusic != null) && (CurrentMusic.SongNumber / subListSize) < allMusicLists.Count - 1;
+        e.CanExecute = CurrentMusic != null && CurrentPage < (cutSongs.Count - 1);
     }
-
     private void NextPage_Executed(object sender, ExecutedRoutedEventArgs e)
     {
-        currentListMusic = allMusicLists[(CurrentMusic.SongNumber / subListSize) + 1];
-        SetCurrentSong(currentListMusic[0]);
-        musicListView.ItemsSource = currentListMusic;
+        CurrentPage++;
+        currentPageSongNumber = 0;
+
+        previousMusicList = currentMusicList;
+        currentMusicList = nextMusicList;
+        if (CurrentPage == cutSongs.Count - 1) nextMusicList = [];
+        else nextMusicList = StringArrayToMusicList(cutSongs[CurrentPage + 1], CurrentPage + 1);
+
+        SetCurrentSong(currentMusicList[0]);
+        musicListView.ItemsSource = currentMusicList;
+
         ScrollToItem();
         sliProgress.Value = 0;
     }

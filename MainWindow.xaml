@@ -47,6 +47,11 @@
             <Button Command="ApplicationCommands.Close" BorderThickness="0" Width="64" Margin="0,0,150,0">
                 Previous
             </Button>
+            <TextBlock TextAlignment="Center" VerticalAlignment="Center" Width="50">
+                <Run Name="pageNumber"></Run>
+                <Run Text="/"></Run>
+                <Run Name="pageTotal"></Run>
+            </TextBlock>
             <Button Command="ApplicationCommands.ContextMenu" BorderThickness="0" Width="64" Margin="150,0,0,0">
                 Next
             </Button>
@@ -119,7 +124,7 @@
 
                 <StackPanel>
                     <TextBlock Name="currentTitle" FontWeight="Bold" />
-                    <TextBlock>
+                    <TextBlock Name="albumAndArtist" Visibility="Hidden">
                         <Run Name="currentAlbum"></Run>
                         <Run Text="-"></Run>
                         <Run Name="currentArtist"></Run>
@@ -161,6 +166,7 @@
                         <Image Source="/random.png"/>
                     </Button>
                 </Grid>
+                
                 <Grid Grid.Column="2" HorizontalAlignment="Right">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition />

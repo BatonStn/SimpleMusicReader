@@ -84,6 +84,11 @@ public class Music
         image.Freeze();
         return image;
     }
+
+    public Music Copy()
+    {
+        return new Music(this, SongNumber);
+    }
 }
 
 /*
