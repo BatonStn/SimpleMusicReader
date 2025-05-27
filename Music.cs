@@ -7,22 +7,12 @@ public class Music
 {
     public string Path { get; set; }
     public string Title { get; set; }
-    public string Artists { get; set; }
+    public string Performers { get; set; }
     public string Album { get; set; }
     public BitmapImage Cover { get; set; }
     public int SongNumber { get; set; }
 
     public Music() { }
-
-    public Music(Music music, int newNumber)
-    {
-        Path = music.Path;
-        Title = music.Title;
-        Artists = music.Artists;
-        Album = music.Album;
-        Cover = music.Cover;
-        SongNumber = newNumber;
-    }
 
     public Music(string path, int songNumber)
     {
@@ -32,12 +22,12 @@ public class Music
 
         Title = file.Tag.Title;
 
-        Artists = "";
-        foreach (string artist in file.Tag.AlbumArtists)
+        Performers = "";
+        foreach (string artist in file.Tag.Performers)
         {
-            Artists += artist + ", ";
+            Performers += artist + ", ";
         }
-        if (Artists.Length > 0) Artists = Artists.Remove(Artists.Length - 2);
+        if (Performers.Length > 0) Performers = Performers.Remove(Performers.Length - 2);
 
         Album = file.Tag.Album;
 
@@ -84,33 +74,4 @@ public class Music
         image.Freeze();
         return image;
     }
-
-    public Music Copy()
-    {
-        return new Music(this, SongNumber);
-    }
 }
-
-/*
-//Local reference to the file
-TagLib.File file = TagLib.File.Create("band1.mp3");
-
-//Get the file metadata
-Console.WriteLine("Tags on disk: " + file.TagTypesOnDisk);
-Console.WriteLine("Tags in object: " + file.TagTypes);
-
-Write ("Grouping", file.Tag.Grouping);
-Write ("Title", file.Tag.Title);
-Write ("Album Artists", file.Tag.AlbumArtists);
-Write ("Performers", file.Tag.Performers);
-Write ("Composers", file.Tag.Composers);
-Write ("Conductor", file.Tag.Conductor);
-Write ("Album", file.Tag.Album);
-Write ("Genres", file.Tag.Genres);
-Write ("BPM", file.Tag.BeatsPerMinute);
-Write ("Year", file.Tag.Year);
-Write ("Track", file.Tag.Track);
-Write ("TrackCount", file.Tag.TrackCount);
-Write ("Disc", file.Tag.Disc);
-Write ("DiscCount", file.Tag.DiscCount);
-*/

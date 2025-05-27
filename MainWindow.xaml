@@ -48,7 +48,7 @@
                 Previous
             </Button>
             <TextBlock TextAlignment="Center" VerticalAlignment="Center" Width="50">
-                <Run Name="pageNumber"></Run>
+                <Run Name="pageNumber"/>
                 <Run Text="/"></Run>
                 <Run Name="pageTotal"></Run>
             </TextBlock>
@@ -59,6 +59,12 @@
                 Last
             </Button>
         </Grid>
+
+        <StackPanel Name="pageChooser" Visibility="Collapsed" Orientation="Horizontal" 
+                    HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,5,0">
+            <TextBlock Name="testBlock" Text="Choose Page: "/>
+            <TextBox Name="pageNumberBox" Width="18" Height="18" KeyDown="TextBox_KeyDown"/>
+        </StackPanel>
 
         <Border CornerRadius="25" Grid.Row="1" HorizontalAlignment="Right" VerticalAlignment="Bottom"
                 Width="256" Height="256" Margin="0,0,32,16" Panel.ZIndex="1">

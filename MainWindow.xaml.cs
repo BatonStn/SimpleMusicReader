@@ -6,6 +6,7 @@ using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Threading;
 using Microsoft.Win32;
+using TagLib;
 
 namespace SimpleMusicReader;
 
@@ -15,16 +16,14 @@ public partial class MainWindow : Window
     private bool userIsDraggingSlider = false;
     private bool isMusicLooping = false;
 
-    private List<Music> previousMusicList = [];
     private List<Music> currentMusicList = [];
-    private List<Music> nextMusicList = [];
 
     private List<String> songs = [];
     private List<String[]> cutSongs = [];
 
     private int collectionSize = 0;
     private int currentPageSongNumber;
-    private static int subListSize = 25;
+    private static int subListSize = 30;
     private int _currentPage;
     private int CurrentPage
     {
@@ -45,7 +44,7 @@ public partial class MainWindow : Window
             _currentMusic = value;
             currentTitle.Text = _currentMusic.Title;
             currentAlbum.Text = _currentMusic.Album;
-            currentArtist.Text = _currentMusic.Artists;
+            currentArtist.Text = _currentMusic.Performers;
             currentCover.ImageSource = _currentMusic.Cover;
         }
     }
@@ -237,10 +236,7 @@ public partial class MainWindow : Window
             CurrentPage++;
             currentPageSongNumber = 0;
 
-            previousMusicList = currentMusicList;
-            currentMusicList = nextMusicList;
-            if (CurrentPage == cutSongs.Count - 1) nextMusicList = [];
-            else nextMusicList = StringArrayToMusicList(cutSongs[CurrentPage + 1], CurrentPage + 1);
+            currentMusicList = StringArrayToMusicList(cutSongs[CurrentPage], CurrentPage);
 
             SetCurrentSong(currentMusicList[0]);
             musicListView.ItemsSource = currentMusicList;
@@ -265,10 +261,7 @@ public partial class MainWindow : Window
             CurrentPage--;
             currentPageSongNumber = subListSize - 1;
 
-            nextMusicList = currentMusicList;
-            currentMusicList = previousMusicList;
-            if (CurrentPage == 0) previousMusicList = [];
-            else previousMusicList = StringArrayToMusicList(cutSongs[CurrentPage - 1], CurrentPage - 1);
+            currentMusicList = StringArrayToMusicList(cutSongs[CurrentPage], CurrentPage);
 
             SetCurrentSong(currentMusicList[subListSize - 1]);
             musicListView.ItemsSource = currentMusicList;
@@ -333,10 +326,7 @@ public partial class MainWindow : Window
                     CurrentPage++;
                     currentPageSongNumber = 0;
 
-                    previousMusicList = currentMusicList;
-                    currentMusicList = nextMusicList;
-                    if (CurrentPage == cutSongs.Count - 1) nextMusicList = [];
-                    else nextMusicList = StringArrayToMusicList(cutSongs[CurrentPage + 1], CurrentPage + 1);
+                    currentMusicList = StringArrayToMusicList(cutSongs[CurrentPage], CurrentPage);
 
                     SetCurrentSong(currentMusicList[0]);
                     musicListView.ItemsSource = currentMusicList;
@@ -405,13 +395,13 @@ public partial class MainWindow : Window
 
             cutSongs.Add(subList);
         }
-        previousMusicList = [];
+        //previousMusicList = [];
         currentMusicList = StringArrayToMusicList(cutSongs[0], 0);
 
         if (collectionSize > subListSize)
         {
             DisplayPagination();
-            nextMusicList = StringArrayToMusicList(cutSongs[1], 1);
+            //nextMusicList = StringArrayToMusicList(cutSongs[1], 1);
             pageTotal.Text = cutSongs.Count.ToString();
         }
 
@@ -436,6 +426,7 @@ public partial class MainWindow : Window
     private void DisplayPagination()
     {
         listCommands.Visibility = Visibility.Visible;
+        pageChooser.Visibility = Visibility.Visible;
     }
     private void HidePagination()
     {
@@ -448,9 +439,9 @@ public partial class MainWindow : Window
     }
     private void FirstPage_Executed(object sender, ExecutedRoutedEventArgs e)
     {
-        previousMusicList = [];
+        //previousMusicList = [];
         currentMusicList = StringArrayToMusicList(cutSongs[0], 0);
-        nextMusicList = StringArrayToMusicList(cutSongs[1], 1);
+        //nextMusicList = StringArrayToMusicList(cutSongs[1], 1);
         
         CurrentPage = 0;
         currentPageSongNumber = 0;
@@ -468,9 +459,9 @@ public partial class MainWindow : Window
     {
         int pageNumber = cutSongs.Count - 1;
 
-        previousMusicList = StringArrayToMusicList(cutSongs[pageNumber - 1], pageNumber - 1);
+        //previousMusicList = StringArrayToMusicList(cutSongs[pageNumber - 1], pageNumber - 1);
         currentMusicList = StringArrayToMusicList(cutSongs[pageNumber], pageNumber);
-        nextMusicList = [];
+        //nextMusicList = [];
 
         CurrentPage = pageNumber;
         currentPageSongNumber = 0;
@@ -487,10 +478,8 @@ public partial class MainWindow : Window
     }
     private void PreviousPage_Executed(object sender, ExecutedRoutedEventArgs e)
     {
-        nextMusicList = currentMusicList;
-        currentMusicList = previousMusicList;
-        if (CurrentPage == 1) previousMusicList = [];
-        else previousMusicList = StringArrayToMusicList(cutSongs[CurrentPage - 2], CurrentPage - 2);
+        //nextMusicList = currentMusicList;
+        currentMusicList = StringArrayToMusicList(cutSongs[CurrentPage - 1], CurrentPage - 1);
 
         CurrentPage--;
         currentPageSongNumber = 0;
@@ -511,10 +500,38 @@ public partial class MainWindow : Window
         CurrentPage++;
         currentPageSongNumber = 0;
 
-        previousMusicList = currentMusicList;
-        currentMusicList = nextMusicList;
-        if (CurrentPage == cutSongs.Count - 1) nextMusicList = [];
-        else nextMusicList = StringArrayToMusicList(cutSongs[CurrentPage + 1], CurrentPage + 1);
+        //previousMusicList = currentMusicList;
+        currentMusicList = StringArrayToMusicList(cutSongs[CurrentPage], CurrentPage);
+
+        SetCurrentSong(currentMusicList[0]);
+        musicListView.ItemsSource = currentMusicList;
+
+        ScrollToItem();
+        sliProgress.Value = 0;
+    }
+
+    private void TextBox_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter)
+        {
+            if (int.TryParse(pageNumberBox.Text, out int n))
+            {
+                if (n > 0 && n < cutSongs.Count + 1) ChosenPage_Executed(n);
+                else MessageBox.Show("Page Number must be between 1 and " + pageTotal.Text);
+            }
+            else
+            {
+                MessageBox.Show("Page Number must be numerical");
+            }
+        }
+    }
+
+    private void ChosenPage_Executed(int n)
+    {
+        CurrentPage = n - 1;
+        currentPageSongNumber = 0;
+
+        currentMusicList = StringArrayToMusicList(cutSongs[CurrentPage], CurrentPage);
 
         SetCurrentSong(currentMusicList[0]);
         musicListView.ItemsSource = currentMusicList;
